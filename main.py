@@ -108,8 +108,6 @@ class IsolationForest:
             self.trees.append(tree)
 
 
-#data creation
-
 # Function to simulate a real-time data stream
 def real_time_data_stream(stream_length=1000, frequency=0.1, noise_level=0.1, anomaly_chance=0.01):
     """
