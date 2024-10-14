@@ -92,26 +92,21 @@ class IsolationForest:
         # Returns 1 for anomalies, -1 for normal points
         scores = self.anomaly_score(X)
         return np.where(scores >= threshold, 1, -1)
+    
+    def fit(self, X):
+        self.trees = []
+        height_limit = math.ceil(math.log2(self.subsample_size))  # Maximum tree height
+    
+        for _ in range(self.n_trees):
+        # Ensure we don't sample more points than available
+            n_samples = min(X.shape[0], self.subsample_size)
+            
+            # Sample a random subset of data
+            X_sample = X[np.random.choice(X.shape[0], n_samples, replace=False)]
+            tree = IsolationTree(height_limit)
+            tree.fit(X_sample, current_height=0)
+            self.trees.append(tree)
 
-
-# Example usage
-# if __name__ == '__main__':
-#     # Generate sample data
-#     X_normal = np.random.randn(500, 2)
-#     X_anomalies = np.random.uniform(low=-8, high=8, size=(20, 2))
-#     X = np.vstack([X_normal, X_anomalies])
-
-#     # Fit Isolation Forest
-#     isolation_forest = IsolationForest(n_trees=100, subsample_size=256)
-#     isolation_forest.fit(X)
-
-#     # Predict anomalies
-#     scores = isolation_forest.anomaly_score(X)
-#     predictions = isolation_forest.predict(X, threshold=0.6)
-
-#     # Output some results
-#     print("Anomaly scores:", scores)
-#     print("Predictions (1: Anomaly, -1: Normal):", predictions)
 
 #data creation
 
@@ -145,65 +140,71 @@ def real_time_data_stream(stream_length=1000, frequency=0.1, noise_level=0.1, an
         # Simulate real-time delay (optional)
         time.sleep(0.01)  # 10 ms delay to simulate streaming
 
-# Example usage: Streaming data simulation
-"""
-if __name__ == "__main__":
-    # Simulate a real-time stream for 100 data points
-    for data_point in real_time_data_stream(stream_length=100, frequency=0.1, noise_level=0.2, anomaly_chance=0.05):
-        print(f"New data point: {data_point}")"""
 
-
-
-
-# Simulated data stream with real-time updates and anomalies
-def real_time_data_stream(stream_length=1000, frequency=0.1, noise_level=0.1, anomaly_chance=0.01):
-    for i in range(stream_length):
-        regular_value = np.sin(2 * np.pi * frequency * i)  # Regular sine wave
-        noise = np.random.normal(0, noise_level)  # Random noise
-        
-        if random.random() < anomaly_chance:
-            anomaly = random.uniform(5, 10)  # Anomaly spike
-            yield regular_value + noise + anomaly, True  # Mark as anomaly
-        else:
-            yield regular_value + noise, False  # Normal data point
-
-# Visualization function
-def visualize_data_stream(stream_length=100, frequency=0.1, noise_level=0.1, anomaly_chance=0.01):
-    plt.ion()  # Enable interactive mode for real-time updates
-    fig, ax = plt.subplots()
+# Function to visualize the real-time data stream and mark anomalies
+def visualize_real_time_with_anomalies(stream_length=100, frequency=0.1, noise_level=0.1, anomaly_chance=0.01, n_trees=100, subsample_size=256, threshold=0.6):
+    """
+    Visualizes a real-time data stream, detects anomalies using Isolation Forest, and marks them on the graph.
     
-    data = []
+    Args:
+        stream_length (int): Total number of data points to generate in the stream.
+        frequency (float): Frequency of the sine wave (regular pattern).
+        noise_level (float): Amplitude of random noise.
+        anomaly_chance (float): Probability of an anomaly occurring at each data point.
+        n_trees (int): Number of trees in the Isolation Forest.
+        subsample_size (int): Number of samples per tree in the Isolation Forest.
+        threshold (float): Threshold for determining anomalies.
+    """
+    
+    # Initialize Isolation Forest
+    isolation_forest = IsolationForest(n_trees=n_trees, subsample_size=subsample_size)
+    
+    # Collect initial points to fit Isolation Forest
+    initial_data = np.array([x for _, x in zip(range(subsample_size), real_time_data_stream(stream_length, frequency, noise_level, anomaly_chance))])
+    
+    # Fit Isolation Forest on the initial data
+    isolation_forest.fit(initial_data.reshape(-1, 1))  # Reshape for a single feature
+    
+    # Prepare for real-time plotting
+    plt.ion()  # Interactive mode on for real-time updates
+    fig, ax = plt.subplots()
+    data_points = []
     anomaly_points = []
     anomaly_indices = []
-
-    for i, (data_point, is_anomaly) in enumerate(real_time_data_stream(stream_length, frequency, noise_level, anomaly_chance)):
-        data.append(data_point)
+    
+    for i, data_point in enumerate(real_time_data_stream(stream_length, frequency, noise_level, anomaly_chance)):
+        data_points.append(data_point)
         
-        # Clear the plot and re-plot data
-        ax.clear()
-        ax.plot(data, label='Data Stream', color='blue')
+        # Get prediction for the current data point
+        current_point = np.array([[data_point]])
+        prediction = isolation_forest.predict(current_point, threshold=threshold)
         
-        # If anomaly, mark it
-        if is_anomaly:
+        # Mark anomaly
+        if prediction == 1:
             anomaly_points.append(data_point)
             anomaly_indices.append(i)
+        
+        # Clear the plot and re-plot the data
+        ax.clear()
+        ax.plot(data_points, label='Data Stream', color='blue')
         
         # Plot anomalies in red
         ax.scatter(anomaly_indices, anomaly_points, color='red', label='Anomalies', marker='x')
         
-        # Add title and labels
+        # Add labels and legend
         ax.set_title('Real-time Data Stream with Anomalies')
         ax.set_xlabel('Time Step')
         ax.set_ylabel('Value')
         ax.legend(loc='upper right')
         
+        # Update the plot
         plt.pause(0.01)  # Pause to update the plot in real-time
-
-    plt.ioff()  # Disable interactive mode once the stream ends
+    
+    plt.ioff()  # Turn off interactive mode after the stream ends
     plt.show()
 
-# Run the visualization
+# Run the visualization with anomaly detection
 if __name__ == "__main__":
-    visualize_data_stream(stream_length=200, frequency=0.1, noise_level=0.2, anomaly_chance=0.05)
+    visualize_real_time_with_anomalies(stream_length=200, frequency=0.1, noise_level=0.2, anomaly_chance=0.05, n_trees=100, subsample_size=256, threshold=0.6)
 
 
