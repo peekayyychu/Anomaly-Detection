@@ -1,1 +1,1 @@
-Detect anomalies in a real-time sequence of floating point numbers
+Detect anomalies in a real-time sequence of floating point numbers.
