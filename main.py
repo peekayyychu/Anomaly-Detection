@@ -1,4 +1,4 @@
-#objective1 : selection of algorithm -> isolation forest
+#algorithm used -> isolation forest
 
 import random
 import numpy as np
