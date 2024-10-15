@@ -5,6 +5,7 @@ import numpy as np
 import math
 import time
 import matplotlib.pyplot as plt
+import csv
 
 # Isolation Tree class
 class IsolationTree:
@@ -169,52 +170,57 @@ def visualize_real_time_with_anomalies(stream_length=100, frequency=0.1, noise_l
     data_points = []
     anomaly_points = []
     anomaly_indices = []
+
+    with open('error_log.csv', mode='w', newline = '') as file:
+        writer = csv.writer(file)
+        writer.writerow(["Error Type", "Error Message"])
     
-    for i, data_point in enumerate(real_time_data_stream(stream_length, frequency, noise_level, anomaly_chance)):
-        try:
-            # Error handling for wrong data type
-            if not isinstance(data_point, (int, float)):
-                raise TypeError(f"Data point {data_point} is of the type {type(data_point)}")
+        for i, data_point in enumerate(real_time_data_stream(stream_length, frequency, noise_level, anomaly_chance)):
+            try:
+                # Error handling for wrong data type
+                if not isinstance(data_point, (int, float)):
+                    raise TypeError(f"Data point {data_point} is of the type {type(data_point)}")
 
-            # Error handling for data point exceeding upper threshold
-            if data_point > 10:
-                raise ValueError(f"Data point {data_point} exceeds the upper threshold value of 10")
+                # Error handling for data point exceeding upper threshold
+                if data_point > 10:
+                    raise ValueError(f"Data point {data_point} exceeds the upper threshold value of 10")
 
-            # Error handling for data point exceeding lower threshold
-            if data_point < 0:
-                raise ValueError(f"Data point {data_point} is below the lower threshold value of 0")
+                # Error handling for data point exceeding lower threshold
+                if data_point < 0:
+                    raise ValueError(f"Data point {data_point} is below the lower threshold value of 0")
 
-            # Only append valid data points
-            data_points.append(data_point)
+                # Only append valid data points
+                data_points.append(data_point)
 
-            # Get prediction for the current valid data point
-            current_point = np.array([[data_point]])
-            prediction = isolation_forest.predict(current_point, threshold=threshold)
+                # Get prediction for the current valid data point
+                current_point = np.array([[data_point]])
+                prediction = isolation_forest.predict(current_point, threshold=threshold)
 
-            # Mark anomaly
-            if prediction == 1:
-                anomaly_points.append(data_point)
-                anomaly_indices.append(len(data_points) - 1)  # Use valid data point index
+                # Mark anomaly
+                if prediction == 1:
+                    anomaly_points.append(data_point)
+                    anomaly_indices.append(len(data_points) - 1)  # Use valid data point index
 
-        except (TypeError, ValueError) as e:
-            print(f"Skipping data point {data_point} due to error: {e}")
-            continue
+            except (TypeError, ValueError) as e:
+                print(f"Skipping data point {data_point} due to error: {e}")
+                writer.writerow([data_point, str(e)])
+                continue
 
-        # Clear the plot and re-plot the data
-        ax.clear()
-        ax.plot(data_points, label='Data Stream', color='blue')
+            # Clear the plot and re-plot the data
+            ax.clear()
+            ax.plot(data_points, label='Data Stream', color='blue')
 
-        # Plot anomalies in red
-        ax.scatter(anomaly_indices, anomaly_points, color='red', label='Anomalies', marker='x')
+            # Plot anomalies in red
+            ax.scatter(anomaly_indices, anomaly_points, color='red', label='Anomalies', marker='x')
 
-        # Add labels and legend
-        ax.set_title('Real-time Data Stream with Anomalies')
-        ax.set_xlabel('Time Step')
-        ax.set_ylabel('Value')
-        ax.legend(loc='upper right')
+            # Add labels and legend
+            ax.set_title('Real-time Data Stream with Anomalies')
+            ax.set_xlabel('Time Step')
+            ax.set_ylabel('Value')
+            ax.legend(loc='upper right')
 
-        # Update the plot
-        plt.pause(0.01)  # Pause to update the plot in real-time
+            # Update the plot
+            plt.pause(0.01)  # Pause to update the plot in real-time
 
     plt.ioff()  # Turn off interactive mode after the stream ends
     plt.show()
